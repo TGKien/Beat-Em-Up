@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Dynamic;
+using System.Security.Cryptography;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -17,7 +18,12 @@ public class PlayerScript : MonoBehaviour
     bool facingRight = true;
     Vector3 localScale;
     private bool isCanAttack = true;
-   
+    private float MAX_HEALTH = 100f;
+    [SerializeField]
+    private float currentHealth;
+    private bool isCanTakeDamage = true;
+    public LayerMask attackMask;
+    public float attackRange = 3;
 
     // Use this for initialization
     void Start()
@@ -25,6 +31,7 @@ public class PlayerScript : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
         localScale = transform.localScale;
+        currentHealth = MAX_HEALTH;
         
        
     }
@@ -34,7 +41,7 @@ public class PlayerScript : MonoBehaviour
     void Update()
     {
         if (Input.GetButtonDown("Jump") && !isDead && Mathf.Abs(rb.velocity.y) < 0.01)
-            rb.AddForce(Vector2.up * 600f);
+            rb.AddForce(Vector2.up * 500f);
 
 
         if (Input.GetKey(KeyCode.LeftShift))
@@ -46,9 +53,12 @@ public class PlayerScript : MonoBehaviour
             isCanAttack = false;
             anim.SetBool("isAttacking1", true);
             StartCoroutine(ResetAttack());
-            
-        
+            Collider2D colInfo = Physics2D.OverlapCircle(transform.position, attackRange, attackMask);
+            if (colInfo != null)
+            {
+                colInfo.GetComponent<BossScript>().TakeDamage(50);
 
+            }
 
 
 
@@ -87,7 +97,6 @@ public class PlayerScript : MonoBehaviour
 
     void SetAnimationState()
     {
-        Debug.Log(dirX);
         if (dirX == 0)
         {
             anim.SetBool("isWalking", false);
@@ -131,7 +140,29 @@ public class PlayerScript : MonoBehaviour
 
 
     }
-
+    public void TakeDamage(float damage)
+    {
+        if (isCanTakeDamage)
+        {
+            currentHealth -= damage;
+            StartCoroutine(DamageAnimation());
+            isCanTakeDamage= false;
+        }
+        if (currentHealth <= 0f)
+        {
+            PlayerScript playerScript = GetComponent<PlayerScript>();
+            playerScript.enabled = false;
+            anim.SetTrigger("isDying");
+        }
+   
+    }
+    IEnumerator DamageAnimation()
+    {
+        anim.SetBool("isHurting", true);
+        yield return new WaitForSeconds(0.75f);
+        anim.SetBool("isHurting", false);
+        isCanTakeDamage = true;
+    }
 
 }
 
